@@ -1,0 +1,1002 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Conditional Field Designer</title>
+<style>
+  :root {
+    --primary: #4f46e5; --primary-hover: #4338ca; --primary-light: #e0e7ff; --primary-bg: #eef2ff;
+    --danger: #ef4444; --danger-light: #fee2e2;
+    --success: #10b981; --success-light: #d1fae5;
+    --amber: #f59e0b; --amber-light: #fef3c7;
+    --purple: #8b5cf6; --purple-light: #ede9fe;
+    --bg: #f1f5f9; --surface: #ffffff; --border: #e2e8f0; --border-dark: #cbd5e1;
+    --text: #0f172a; --text-muted: #64748b;
+    --shadow: 0 4px 6px -1px rgb(0 0 0 / 0.07), 0 2px 4px -2px rgb(0 0 0 / 0.05);
+    --shadow-md: 0 10px 15px -3px rgb(0 0 0 / 0.08), 0 4px 6px -4px rgb(0 0 0 / 0.05);
+    --shadow-lg: 0 20px 40px -10px rgb(0 0 0 / 0.15);
+    --radius: 12px; --radius-sm: 8px;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: system-ui, -apple-system, sans-serif; background: var(--bg); color: var(--text); height: 100vh; display: flex; flex-direction: column; overflow: hidden; font-size: 14px; -webkit-font-smoothing: antialiased; }
+
+  /* ---- LAYOUT ---- */
+  header { background: var(--surface); padding: 0 24px; height: 56px; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; z-index: 100; flex-shrink: 0; }
+  .layout { display: flex; flex: 1; overflow: hidden; }
+  .sidebar-left { width: 260px; background: var(--surface); border-right: 1px solid var(--border); display: flex; flex-direction: column; z-index: 20; flex-shrink: 0; }
+  .center-col { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+  .main-content { flex: 1; position: relative; overflow: hidden; cursor: grab; }
+  .main-content:active { cursor: grabbing; }
+  .sidebar-right { width: 380px; background: var(--surface); border-left: 1px solid var(--border); display: flex; flex-direction: column; z-index: 20; flex-shrink: 0; overflow-y: auto; }
+
+  /* ---- BOTTOM PANEL ---- */
+  .bottom-panel { background: var(--surface); border-top: 1px solid var(--border); display: flex; flex-direction: column; flex-shrink: 0; overflow: hidden; transition: height 0.2s ease; }
+  .bottom-panel.collapsed { height: 40px !important; }
+  .bp-handle { height: 40px; display: flex; align-items: center; justify-content: space-between; padding: 0 16px; cursor: pointer; flex-shrink: 0; background: #fafbfc; user-select: none; }
+  .bp-handle:hover { background: #f1f5f9; }
+  .bp-resize { position: absolute; top: -3px; left: 0; right: 0; height: 6px; cursor: ns-resize; z-index: 10; }
+  .bp-resize:hover { background: var(--primary-light); }
+  .bp-body { flex: 1; overflow-y: auto; display: flex; }
+  .bp-col { flex: 1; padding: 16px 20px; overflow-y: auto; }
+  .bp-col + .bp-col { border-left: 1px solid var(--border); }
+
+  /* ---- BUTTONS ---- */
+  .btn { display: inline-flex; align-items: center; justify-content: center; gap: 6px; padding: 8px 14px; border-radius: 6px; font-weight: 600; cursor: pointer; border: 1px solid transparent; font-size: 13px; font-family: inherit; transition: all 0.15s; line-height: 1; }
+  .btn-primary { background: var(--primary); color: white; }
+  .btn-primary:hover { background: var(--primary-hover); }
+  .btn-ghost { background: none; color: var(--text-muted); border: none; }
+  .btn-ghost:hover { background: #f1f5f9; color: var(--text); }
+  .btn-outline { border: 1px solid var(--border-dark); background: white; color: var(--text); }
+  .btn-outline:hover { background: #f8fafc; border-color: #94a3b8; }
+  .btn-danger-ghost { background: none; color: var(--text-muted); border: none; }
+  .btn-danger-ghost:hover { background: var(--danger-light); color: var(--danger); }
+  .btn-sm { padding: 5px 10px; font-size: 12px; }
+  .btn-xs { padding: 3px 8px; font-size: 11px; border-radius: 4px; }
+
+  /* ---- FORMS ---- */
+  .form-group { margin-bottom: 16px; }
+  .form-label { display: block; font-weight: 600; margin-bottom: 6px; color: #334155; font-size: 13px; }
+  .form-hint { font-size: 12px; color: var(--text-muted); margin-top: 4px; font-weight: 400; }
+  .form-control { width: 100%; padding: 9px 12px; border: 1px solid var(--border-dark); border-radius: 6px; font-size: 14px; font-family: inherit; color: var(--text); transition: border-color 0.15s, box-shadow 0.15s; }
+  .form-control:focus { outline: none; border-color: var(--primary); box-shadow: 0 0 0 3px var(--primary-light); }
+  .form-control:disabled { background: #f8fafc; color: var(--text-muted); }
+  select.form-control { cursor: pointer; }
+  textarea.form-control { resize: vertical; line-height: 1.5; }
+
+  .checkbox-row { display: flex; align-items: center; gap: 8px; padding: 6px 8px; border-radius: 4px; cursor: pointer; user-select: none; font-size: 13px; }
+  .checkbox-row:hover { background: #f8fafc; }
+  .checkbox-row input { width: 16px; height: 16px; accent-color: var(--primary); cursor: pointer; flex-shrink: 0; }
+
+  /* ---- INVENTORY ---- */
+  .inv-item { padding: 10px 12px; border: 1px solid var(--border); border-radius: 8px; margin-bottom: 8px; background: white; cursor: grab; transition: all 0.15s; }
+  .inv-item:hover { border-color: var(--primary); box-shadow: 0 2px 8px rgba(79,70,229,0.1); }
+  .inv-item:active { cursor: grabbing; opacity: 0.7; }
+  .inv-item.on-canvas { opacity: 0.4; cursor: default; border-style: dashed; }
+  .inv-item.on-canvas:hover { border-color: var(--border); box-shadow: none; }
+
+  /* ---- CANVAS NODES ---- */
+  .node { position: absolute; width: 260px; background: white; border: 2px solid var(--border); border-radius: var(--radius); box-shadow: var(--shadow); user-select: none; transition: box-shadow 0.15s; }
+  .node:hover { box-shadow: var(--shadow-md); }
+  .node.selected { border-color: var(--primary); box-shadow: 0 0 0 3px var(--primary-light), var(--shadow-md); }
+  .node-head { padding: 10px 14px; border-bottom: 1px solid var(--border); cursor: move; display: flex; align-items: center; justify-content: space-between; background: #fafbfc; border-radius: 10px 10px 0 0; }
+  .node-head-name { font-weight: 700; font-size: 13px; color: #1e293b; }
+  .node-type-badge { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; padding: 2px 6px; border-radius: 4px; }
+  .node-body { padding: 0; max-height: 200px; overflow-y: auto; }
+  .node-value { padding: 6px 14px; font-size: 12px; color: #475569; border-bottom: 1px solid #f1f5f9; display: flex; align-items: center; gap: 6px; }
+  .node-value:last-child { border-bottom: none; }
+  .node-value-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--border-dark); flex-shrink: 0; }
+  .node-empty { padding: 12px 14px; font-size: 12px; color: var(--text-muted); font-style: italic; text-align: center; }
+
+  /* Ports */
+  .port { width: 16px; height: 16px; background: white; border: 2px solid var(--border-dark); border-radius: 50%; position: absolute; top: 50%; transform: translateY(-50%); cursor: crosshair; transition: all 0.15s; z-index: 5; }
+  .port:hover { background: var(--primary); border-color: var(--primary); transform: translateY(-50%) scale(1.3); box-shadow: 0 0 0 4px var(--primary-light); }
+  .port-in { left: -9px; }
+  .port-out { right: -9px; }
+
+  /* Drop target highlight when drawing edge */
+  .node.drop-target { border-color: var(--primary); border-style: dashed; background: var(--primary-bg); }
+
+  /* ---- EDGE LABELS ---- */
+  .edge-label { position: absolute; background: white; border: 1px solid var(--border); border-radius: 6px; padding: 3px 8px; font-size: 10px; font-weight: 600; color: var(--text-muted); white-space: nowrap; pointer-events: auto; cursor: pointer; box-shadow: var(--shadow); transition: all 0.15s; transform: translate(-50%, -50%); z-index: 4; }
+  .edge-label:hover { border-color: var(--primary); color: var(--primary); box-shadow: 0 0 0 2px var(--primary-light); }
+  .edge-label.selected { border-color: var(--primary); color: var(--primary); background: var(--primary-bg); }
+
+  /* ---- SVG EDGES ---- */
+  .edge-hit { pointer-events: stroke; cursor: pointer; }
+  .edge-line { pointer-events: none; transition: stroke 0.15s; }
+
+  /* ---- PREVIEW FIELDS ---- */
+  .pf-field { margin-bottom: 14px; }
+  .pf-field label { display: flex; align-items: center; justify-content: space-between; font-weight: 600; font-size: 13px; color: #334155; margin-bottom: 6px; }
+  .pf-field.autofilled { background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 8px; padding: 12px; }
+
+  .pf-explain { }
+
+  /* ---- MODAL ---- */
+  .modal-backdrop { position: fixed; inset: 0; background: rgba(15,23,42,0.4); z-index: 1000; display: flex; align-items: center; justify-content: center; opacity: 0; pointer-events: none; transition: opacity 0.2s; }
+  .modal-backdrop.open { opacity: 1; pointer-events: auto; }
+  .modal-box { background: white; border-radius: 14px; width: 480px; max-width: 92vw; max-height: 85vh; display: flex; flex-direction: column; box-shadow: var(--shadow-lg); transform: translateY(12px); transition: transform 0.2s; }
+  .modal-backdrop.open .modal-box { transform: translateY(0); }
+  .modal-top { padding: 18px 22px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; }
+  .modal-mid { padding: 22px; overflow-y: auto; flex: 1; }
+  .modal-bot { padding: 14px 22px; border-top: 1px solid var(--border); display: flex; justify-content: flex-end; gap: 10px; background: #fafbfc; border-radius: 0 0 14px 14px; }
+
+  /* ---- RIGHT SIDEBAR PANELS ---- */
+  .rs-header { padding: 20px; border-bottom: 1px solid var(--border); background: #fafbfc; }
+  .rs-section { padding: 16px 20px; border-bottom: 1px solid var(--border); }
+  .rs-empty { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; padding: 40px; text-align: center; }
+
+  .rule-card { border: 1px solid var(--border); border-radius: 10px; margin-bottom: 12px; overflow: hidden; background: white; }
+  .rule-card-head { padding: 10px 14px; background: #fafbfc; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; }
+  .rule-card-body { padding: 14px; }
+  .outcome-row { display: flex; align-items: center; justify-content: space-between; padding: 8px 10px; background: #f8fafc; border: 1px solid var(--border); border-radius: 6px; margin-bottom: 6px; font-size: 13px; }
+
+  /* ---- SCROLLBAR ---- */
+  ::-webkit-scrollbar { width: 5px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
+</style>
+</head>
+<body>
+
+<header>
+  <div style="display:flex; align-items:center; gap:12px;">
+    <div style="background: linear-gradient(135deg, var(--primary), #818cf8); padding: 7px; border-radius: 8px; color: white; display:flex;">
+      <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
+    </div>
+    <div>
+      <div style="font-size:16px; font-weight:700; letter-spacing:-0.02em;">Conditional Field Designer</div>
+    </div>
+  </div>
+  <button class="btn btn-ghost" onclick="resetAll()">
+    <svg width="15" height="15" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+    Reset
+  </button>
+</header>
+
+<div class="layout">
+  <!-- LEFT: Inventory -->
+  <aside class="sidebar-left">
+    <div style="padding:16px; border-bottom:1px solid var(--border);">
+      <div style="font-size:14px; font-weight:700; color:#1e293b; margin-bottom:4px;">Fields</div>
+      <div style="font-size:12px; color:var(--text-muted); margin-bottom:12px;">Drag onto canvas to use</div>
+      <button class="btn btn-primary btn-sm w-full" onclick="openFieldModal()" style="width:100%;">+ New Field</button>
+    </div>
+    <div style="padding:12px; overflow-y:auto; flex:1;" id="inventory-list"></div>
+  </aside>
+
+  <!-- CENTER COLUMN: Canvas + Bottom Panel -->
+  <div class="center-col">
+    <!-- Canvas -->
+    <main class="main-content" id="canvas-wrap">
+      <div id="canvas" style="position:absolute; width:6000px; height:6000px; transform-origin:0 0;">
+        <svg id="edge-svg" style="position:absolute; top:0; left:0; width:100%; height:100%; pointer-events:none; overflow:visible;">
+          <defs>
+            <marker id="ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0 L10 5 L0 10z" fill="#94a3b8"/></marker>
+            <marker id="ah-sel" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0 L10 5 L0 10z" fill="var(--primary)"/></marker>
+          </defs>
+          <g id="edge-g"></g>
+        </svg>
+        <div id="node-layer"></div>
+        <div id="edge-label-layer" style="position:absolute; top:0; left:0; pointer-events:none;"></div>
+      </div>
+    </main>
+
+    <!-- Bottom Panel: Live Preview -->
+    <div class="bottom-panel" id="bottom-panel" style="height:240px; position:relative;">
+      <div class="bp-resize" onmousedown="bpResizeStart(event)"></div>
+      <div class="bp-handle" onclick="toggleBP()">
+        <span style="font-weight:700; font-size:13px; display:flex; align-items:center; gap:8px; color:#1e293b;">
+          <span style="width:8px;height:8px;border-radius:50%;background:var(--success);"></span>
+          Live End-User Preview
+          <span style="font-size:11px; font-weight:500; color:var(--text-muted);">— See how the form behaves with your rules</span>
+        </span>
+        <button class="btn btn-ghost btn-xs" id="bp-toggle-btn" style="font-size:11px;">
+          <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2" id="bp-chevron" style="transition:transform 0.2s;"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/></svg>
+        </button>
+      </div>
+      <div class="bp-body" id="bp-body">
+        <div class="bp-col" id="fp-body"></div>
+        <div class="bp-col" id="fp-explain" style="max-width:380px; background:#fafbfc;"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- RIGHT: Properties -->
+  <aside class="sidebar-right" id="right-panel"></aside>
+</div>
+
+<!-- Modal mount -->
+<div id="modal-mount"></div>
+
+<script>
+// ============================================================
+//  STATE
+// ============================================================
+const mkId = () => Math.random().toString(36).slice(2,10);
+const esc = s => s == null ? '' : String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+
+function freshState() {
+  return {
+    fields: [
+      { id:'f1', name:'Request Type', type:'single-select', values:['Office Move','IT Access','Building Access'] },
+      { id:'f2', name:'Department', type:'multi-select', values:['Finance','HR','Legal','Technology'] },
+      { id:'f3', name:'Building', type:'single-select', values:['London HQ','New York HQ','Canary Wharf'] },
+      { id:'f4', name:'Floor', type:'multi-select', values:['1','2','3','4','5','6','10','11','12'] },
+      { id:'f5', name:'City', type:'text', values:[] },
+      { id:'f6', name:'Country', type:'text', values:[] },
+      { id:'f7', name:'Secure Area Justification', type:'text', values:[] },
+    ],
+    nodes: [
+      {fieldId:'f1', x:60, y:120},
+      {fieldId:'f2', x:420, y:40},
+      {fieldId:'f3', x:420, y:260},
+      {fieldId:'f5', x:780, y:60},
+      {fieldId:'f6', x:780, y:200},
+      {fieldId:'f4', x:780, y:360},
+      {fieldId:'f7', x:1140, y:360},
+    ],
+    rules: [
+      { id:'r1', src:'f1', matchType:'CONTAINS_ANY', matchValues:['Office Move','Building Access'],
+        outcomes:[
+          {id:'o1', type:'REVEAL', target:'f2', required:true, allowed:['Finance','HR','Legal','Technology']},
+          {id:'o2', type:'REVEAL', target:'f3', required:true, allowed:['London HQ','New York HQ','Canary Wharf']},
+        ]},
+      { id:'r2', src:'f3', matchType:'EXACT', matchValues:['London HQ'],
+        outcomes:[
+          {id:'o3', type:'AUTOFILL', target:'f5', value:'London'},
+          {id:'o4', type:'AUTOFILL', target:'f6', value:'United Kingdom'},
+          {id:'o5', type:'REVEAL', target:'f4', required:true, allowed:['1','2','10','11','12']},
+        ]},
+      { id:'r3', src:'f3', matchType:'EXACT', matchValues:['New York HQ'],
+        outcomes:[
+          {id:'o6', type:'AUTOFILL', target:'f5', value:'New York'},
+          {id:'o7', type:'AUTOFILL', target:'f6', value:'United States'},
+          {id:'o8', type:'REVEAL', target:'f4', required:true, allowed:['3','4','5','6']},
+        ]},
+      { id:'r4', src:'f4', matchType:'CONTAINS_ANY', matchValues:['5','6','11','12'],
+        outcomes:[
+          {id:'o9', type:'REVEAL', target:'f7', required:true, allowed:[]},
+        ]},
+    ],
+    pan:{x:0,y:0}, zoom:1,
+    sel: null,       // {type:'node',id} or {type:'edge',src,tgt}
+    drawing: null,   // edge-drawing state
+    dragging: null,  // node-dragging state
+    panning: false,
+    fpOpen: true,
+    preview: { inputs:{}, visible:[], constraints:{}, autofills:{}, explanations:[], errors:[] },
+  };
+}
+
+let S = freshState();
+
+function field(id) { return S.fields.find(f=>f.id===id); }
+
+// ============================================================
+//  RULE ENGINE
+// ============================================================
+function evaluate() {
+  const targeted = new Set();
+  S.rules.forEach(r => r.outcomes.forEach(o => targeted.add(o.target)));
+  const onCanvas = new Set(S.nodes.map(n=>n.fieldId));
+  const roots = S.fields.filter(f => onCanvas.has(f.id) && !targeted.has(f.id)).map(f=>f.id);
+
+  let inputs = {...S.preview.inputs};
+  let visible = new Set(roots);
+  let constraints = {}, autofills = {}, explanations = [], errors = [];
+  let changed = true, iter = 0;
+
+  while (changed && iter < 50) {
+    changed = false; iter++;
+    let matched = [];
+    for (const r of S.rules) {
+      if (!visible.has(r.src)) continue;
+      let v = autofills[r.src] !== undefined ? autofills[r.src] : inputs[r.src];
+      if (!v || (Array.isArray(v) && !v.length)) continue;
+      let va = Array.isArray(v)?v:[v];
+      let ok = false;
+      if (r.matchValues.length) {
+        if (r.matchType==='EXACT') ok = r.matchValues.length===va.length && r.matchValues.every(x=>va.includes(x));
+        else if (r.matchType==='CONTAINS_ALL') ok = r.matchValues.every(x=>va.includes(x));
+        else ok = r.matchValues.some(x=>va.includes(x));
+      }
+      if (ok) matched.push(r);
+    }
+    // group by src, pick highest prio
+    let byField = {};
+    matched.forEach(r => { (byField[r.src]||(byField[r.src]=[])).push(r); });
+    for (const fid in byField) {
+      let rs = byField[fid];
+      const prio = r => r.matchType==='EXACT'?3:r.matchType==='CONTAINS_ALL'?2:1;
+      rs.sort((a,b)=>prio(b)-prio(a));
+      let top = rs.filter(r=>prio(r)===prio(rs[0]));
+      // allow ALL top-priority rules to fire (not just one) so multiple edges from same source work
+      for (const winner of top) {
+        let v = autofills[fid]!==undefined?autofills[fid]:inputs[fid];
+        explanations.push({
+          field: field(fid).name, val: Array.isArray(v)?v.join(', '):v,
+          matchType: winner.matchType, matchVals: winner.matchValues,
+          outs: winner.outcomes.map(o => { let tf=field(o.target); return tf?(o.type==='AUTOFILL'?`Auto-fill ${tf.name} = "${o.value}"`:`Reveal ${tf.name}`):''; })
+        });
+        for (const o of winner.outcomes) {
+          if (!field(o.target)||!onCanvas.has(o.target)) continue;
+          if (o.type==='AUTOFILL') {
+            if (!visible.has(o.target)||autofills[o.target]!==o.value) { visible.add(o.target); autofills[o.target]=o.value; changed=true; }
+          } else {
+            if (!visible.has(o.target)) { visible.add(o.target); constraints[o.target]={required:o.required,allowed:o.allowed}; changed=true; }
+          }
+        }
+      }
+    }
+  }
+  if (iter>=50) errors.push("Cycle detected — evaluation halted.");
+
+  S.preview = { inputs, visible:[...visible], constraints, autofills, explanations, errors };
+}
+
+// ============================================================
+//  EDGES BETWEEN TWO NODES (consolidated)
+// ============================================================
+function edgePairs() {
+  // returns unique src->tgt pairs from rules
+  const map = {};
+  S.rules.forEach(r => {
+    r.outcomes.forEach(o => {
+      let k = r.src + '>' + o.target;
+      if (!map[k]) map[k] = { src: r.src, tgt: o.target, rules: [] };
+      if (!map[k].rules.includes(r)) map[k].rules.push(r);
+    });
+  });
+  return Object.values(map);
+}
+
+function edgeSummary(src, tgt) {
+  // Build a short human-readable label for the edge
+  let pairs = edgePairs().filter(e => e.src===src && e.tgt===tgt);
+  if (!pairs.length) return '';
+  let rules = pairs[0].rules;
+  let parts = rules.map(r => {
+    let vals = r.matchValues.length ? r.matchValues.join(', ') : '?';
+    let verb = r.matchType==='EXACT'?'=':r.matchType==='CONTAINS_ALL'?'has all':'has any';
+    return `${verb} [${vals}]`;
+  });
+  let types = new Set();
+  rules.forEach(r => r.outcomes.filter(o=>o.target===tgt).forEach(o => types.add(o.type==='AUTOFILL'?'fill':'show')));
+  return `${[...types].join('+')} if ${parts.join(' or ')}`;
+}
+
+// ============================================================
+//  RENDER: INVENTORY
+// ============================================================
+function renderInventory() {
+  const el = document.getElementById('inventory-list');
+  el.innerHTML = S.fields.map(f => {
+    const used = S.nodes.some(n=>n.fieldId===f.id);
+    const typeLabel = f.type==='text'?'Text':f.type==='single-select'?'Single-select':'Multi-select';
+    return `<div class="inv-item ${used?'on-canvas':''}" draggable="${!used}" data-field-id="${f.id}">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:2px;">
+        <span style="font-weight:600;font-size:13px;color:#1e293b;">${esc(f.name)}</span>
+        <span style="font-size:10px;font-weight:600;color:${used?'var(--text-muted)':'var(--primary)'};text-transform:uppercase;">${used?'on canvas':'drag me'}</span>
+      </div>
+      <div style="font-size:11px;color:var(--text-muted);">${typeLabel}${f.values.length?' · '+f.values.length+' options':''}</div>
+    </div>`;
+  }).join('');
+
+  // Attach drag handlers via JS to avoid quote-escaping issues
+  el.querySelectorAll('.inv-item[draggable="true"]').forEach(item => {
+    item.addEventListener('dragstart', e => {
+      e.dataTransfer.setData('text/plain', item.dataset.fieldId);
+    });
+  });
+}
+
+// ============================================================
+//  RENDER: NODES (rich — show values inline)
+// ============================================================
+function renderNodes() {
+  const nl = document.getElementById('node-layer');
+  nl.innerHTML = S.nodes.map(n => {
+    const f = field(n.fieldId); if (!f) return '';
+    const isSel = S.sel && S.sel.type==='node' && S.sel.id===n.fieldId;
+    const typeBg = f.type==='text'?'#fef3c7':f.type==='single-select'?'#dbeafe':'#ede9fe';
+    const typeColor = f.type==='text'?'#92400e':f.type==='single-select'?'#1e40af':'#5b21b6';
+    const typeLabel = f.type==='text'?'TEXT':f.type==='single-select'?'SELECT':'MULTI';
+
+    let bodyHtml = '';
+    if (f.type === 'text') {
+      bodyHtml = `<div class="node-empty">Free text input</div>`;
+    } else if (f.values.length === 0) {
+      bodyHtml = `<div class="node-empty">No options defined</div>`;
+    } else {
+      bodyHtml = f.values.map(v => `<div class="node-value"><span class="node-value-dot" style="background:${typeColor};opacity:0.5;"></span>${esc(v)}</div>`).join('');
+    }
+
+    return `<div class="node ${isSel?'selected':''}" id="nd-${n.fieldId}" style="left:${n.x}px;top:${n.y}px;" onmousedown="nodeMouseDown(event,'${n.fieldId}')">
+      <div class="node-head" onmousedown="nodeDragStart(event,'${n.fieldId}')">
+        <span class="node-head-name">${esc(f.name)}</span>
+        <span class="node-type-badge" style="background:${typeBg};color:${typeColor};">${typeLabel}</span>
+      </div>
+      <div class="node-body">${bodyHtml}</div>
+      <div class="port port-in" onmousedown="event.stopPropagation()"></div>
+      <div class="port port-out" onmousedown="edgeDrawStart(event,'${n.fieldId}')" title="Drag to connect"></div>
+    </div>`;
+  }).join('');
+}
+
+// ============================================================
+//  RENDER: EDGES (SVG + labels)
+// ============================================================
+function renderEdges() {
+  let svgHtml = '';
+  const labelLayer = document.getElementById('edge-label-layer');
+  let labelsHtml = '';
+
+  const pairs = edgePairs();
+  pairs.forEach(p => {
+    const sn = S.nodes.find(n=>n.fieldId===p.src);
+    const tn = S.nodes.find(n=>n.fieldId===p.tgt);
+    if (!sn||!tn) return;
+
+    const x1 = sn.x + 260, y1 = sn.y + 30;
+    const x2 = tn.x, y2 = tn.y + 30;
+    const isSel = S.sel && S.sel.type==='edge' && S.sel.src===p.src && S.sel.tgt===p.tgt;
+    const path = bezier(x1,y1,x2,y2);
+    const col = isSel ? 'var(--primary)' : '#94a3b8';
+    const sw = isSel ? 3 : 2;
+
+    svgHtml += `<path d="${path}" fill="none" stroke="transparent" stroke-width="18" class="edge-hit" onclick="selectEdge('${p.src}','${p.tgt}')"/>`;
+    svgHtml += `<path d="${path}" fill="none" stroke="${col}" stroke-width="${sw}" marker-end="url(#${isSel?'ah-sel':'ah'})" class="edge-line"/>`;
+
+    // Label at midpoint
+    const mx = (x1+x2)/2, my = (y1+y2)/2;
+    const summary = edgeSummary(p.src, p.tgt);
+    if (summary) {
+      labelsHtml += `<div class="edge-label ${isSel?'selected':''}" style="left:${mx}px;top:${my}px;pointer-events:auto;" onclick="selectEdge('${p.src}','${p.tgt}')">${esc(summary.length>40?summary.slice(0,38)+'…':summary)}</div>`;
+    }
+  });
+
+  // Drawing edge
+  if (S.drawing) {
+    const path = bezier(S.drawing.x1,S.drawing.y1,S.drawing.cx,S.drawing.cy);
+    svgHtml += `<path d="${path}" fill="none" stroke="var(--primary)" stroke-width="2" stroke-dasharray="6 4"/>`;
+  }
+
+  document.getElementById('edge-g').innerHTML = svgHtml;
+  labelLayer.innerHTML = labelsHtml;
+}
+
+function bezier(x1,y1,x2,y2) {
+  let dx = Math.max(Math.abs(x2-x1)*0.5, 60);
+  return `M${x1} ${y1} C${x1+dx} ${y1}, ${x2-dx} ${y2}, ${x2} ${y2}`;
+}
+
+// ============================================================
+//  RENDER: RIGHT SIDEBAR
+// ============================================================
+function renderRight() {
+  const el = document.getElementById('right-panel');
+  if (!S.sel) {
+    el.innerHTML = `<div class="rs-empty">
+      <svg width="48" height="48" fill="none" stroke="#cbd5e1" viewBox="0 0 24 24" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M15 15l-2 5L9 9l11 4-5 2zm0 0l5 5"/></svg>
+      <div style="margin-top:16px;font-weight:700;font-size:15px;color:#64748b;">Nothing Selected</div>
+      <div style="margin-top:6px;font-size:13px;color:#94a3b8;max-width:220px;line-height:1.5;">Click a node to edit it, or click an arrow to configure its conditional logic.</div>
+    </div>`;
+    return;
+  }
+
+  if (S.sel.type === 'node') {
+    const f = field(S.sel.id);
+    el.innerHTML = `
+      <div class="rs-header">
+        <div style="font-size:16px;font-weight:700;color:#1e293b;margin-bottom:4px;">${esc(f.name)}</div>
+        <div style="font-size:12px;color:var(--text-muted);font-weight:500;">${f.type==='text'?'Text input':f.type==='single-select'?'Single-select field':'Multi-select field'}</div>
+      </div>
+      <div class="rs-section">
+        <button class="btn btn-primary btn-sm" onclick="openFieldModal('${f.id}')" style="width:100%;margin-bottom:8px;">Edit Field</button>
+        <button class="btn btn-danger-ghost btn-sm" onclick="removeNode('${f.id}')" style="width:100%;">Remove from Canvas</button>
+      </div>
+      ${f.values.length ? `<div class="rs-section">
+        <div style="font-size:12px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.05em;margin-bottom:8px;">Defined Values</div>
+        ${f.values.map(v=>`<div style="padding:5px 0;font-size:13px;color:#334155;border-bottom:1px solid #f1f5f9;">${esc(v)}</div>`).join('')}
+      </div>` : ''}
+    `;
+    return;
+  }
+
+  if (S.sel.type === 'edge') {
+    const {src,tgt} = S.sel;
+    const sf = field(src), tf = field(tgt);
+    const related = S.rules.filter(r => r.src===src && r.outcomes.some(o=>o.target===tgt));
+
+    let rulesHtml = '';
+    if (!related.length) {
+      rulesHtml = `<div style="text-align:center;padding:20px;color:var(--text-muted);font-size:13px;font-style:italic;">No rules yet. Add one below.</div>`;
+    }
+    related.forEach(r => {
+      const verb = r.matchType==='EXACT'?'is exactly':r.matchType==='CONTAINS_ALL'?'contains all of':'contains any of';
+      const outs = r.outcomes.filter(o=>o.target===tgt);
+      rulesHtml += `<div class="rule-card">
+        <div class="rule-card-head">
+          <div style="font-size:12px;font-weight:700;color:#475569;">If ${esc(sf.name)} ${verb}</div>
+          <div style="display:flex;gap:2px;">
+            <button class="btn btn-ghost btn-xs" onclick="openConditionModal('${r.id}')">${editIcon}</button>
+            <button class="btn btn-danger-ghost btn-xs" onclick="deleteRule('${r.id}')">${trashIcon}</button>
+          </div>
+        </div>
+        <div class="rule-card-body">
+          <div style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:10px;">
+            ${r.matchValues.length ? r.matchValues.map(v=>`<span style="background:#f1f5f9;border:1px solid var(--border);padding:2px 8px;border-radius:20px;font-size:12px;font-weight:500;">${esc(v)}</span>`).join('') : '<span style="color:var(--danger);font-size:12px;font-weight:600;">⚠ No values selected</span>'}
+          </div>
+          <div style="font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.05em;margin-bottom:6px;">Then → ${esc(tf.name)}</div>
+          ${outs.map(o => {
+            if (o.type==='AUTOFILL') {
+              return `<div class="outcome-row">
+                <span><span style="background:#dbeafe;color:#1e40af;padding:1px 6px;border-radius:4px;font-size:10px;font-weight:700;text-transform:uppercase;margin-right:6px;">Fill</span>"${esc(o.value)}"</span>
+                <span style="display:flex;gap:2px;"><button class="btn btn-ghost btn-xs" onclick="openOutcomeModal('${r.id}','${o.id}')">${editIcon}</button><button class="btn btn-danger-ghost btn-xs" onclick="deleteOutcome('${r.id}','${o.id}')">${trashIcon}</button></span>
+              </div>`;
+            } else {
+              let det = o.required?'Required':'Optional';
+              if (tf.type!=='text') { let n=o.allowed?o.allowed.length:0; det += `, ${n}/${tf.values.length} options`; }
+              return `<div class="outcome-row">
+                <span><span style="background:#ede9fe;color:#5b21b6;padding:1px 6px;border-radius:4px;font-size:10px;font-weight:700;text-transform:uppercase;margin-right:6px;">Show</span>${det}</span>
+                <span style="display:flex;gap:2px;"><button class="btn btn-ghost btn-xs" onclick="openOutcomeModal('${r.id}','${o.id}')">${editIcon}</button><button class="btn btn-danger-ghost btn-xs" onclick="deleteOutcome('${r.id}','${o.id}')">${trashIcon}</button></span>
+              </div>`;
+            }
+          }).join('')}
+          <div style="display:flex;gap:6px;margin-top:8px;">
+            <button class="btn btn-outline btn-xs" style="flex:1;" onclick="addOutcome('${r.id}','${tgt}','AUTOFILL')">+ Auto-fill</button>
+            <button class="btn btn-outline btn-xs" style="flex:1;" onclick="addOutcome('${r.id}','${tgt}','REVEAL')">+ Reveal</button>
+          </div>
+        </div>
+      </div>`;
+    });
+
+    el.innerHTML = `
+      <div class="rs-header">
+        <div style="font-size:13px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.05em;margin-bottom:8px;">Relationship</div>
+        <div style="display:flex;align-items:center;gap:8px;font-size:14px;">
+          <span style="font-weight:700;color:#1e293b;">${esc(sf.name)}</span>
+          <svg width="16" height="16" fill="none" stroke="var(--primary)" viewBox="0 0 24 24" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M14 5l7 7m0 0l-7 7m7-7H3"/></svg>
+          <span style="font-weight:700;color:#1e293b;">${esc(tf.name)}</span>
+        </div>
+      </div>
+      <div style="padding:16px 20px;">
+        <button class="btn btn-primary btn-sm" onclick="addRuleForEdge('${src}','${tgt}')" style="width:100%;margin-bottom:16px;">+ Add Conditional Rule</button>
+        ${rulesHtml}
+      </div>
+    `;
+  }
+}
+
+const editIcon = '<svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>';
+const trashIcon = '<svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>';
+
+// ============================================================
+//  RENDER: PREVIEW
+// ============================================================
+function renderPreview() {
+  const P = S.preview;
+
+  // LEFT COLUMN: Form fields
+  let formHtml = '';
+  if (P.errors.length) formHtml += `<div style="background:var(--danger-light);border:1px solid #fca5a5;border-radius:8px;padding:10px;margin-bottom:12px;font-size:13px;color:#991b1b;font-weight:600;">${P.errors.map(e=>esc(e)).join('<br>')}</div>`;
+
+  if (!P.visible.length) formHtml += `<div style="text-align:center;color:var(--text-muted);font-size:13px;padding:20px;">No active fields on canvas.</div>`;
+
+  P.visible.forEach(id => {
+    const f = field(id); if (!f) return;
+    const af = P.autofills[id] !== undefined;
+    const val = af ? P.autofills[id] : P.inputs[id];
+    const con = P.constraints[id] || {};
+    const req = con.required || false;
+    const opts = (con.allowed && con.allowed.length) ? con.allowed : f.values;
+
+    let inp = '';
+    if (f.type==='text') {
+      inp = `<input type="text" class="form-control" value="${esc(val||'')}" ${af?'readonly':''} onchange="pvSet('${f.id}',this.value)">`;
+    } else if (f.type==='single-select') {
+      inp = `<select class="form-control" ${af?'disabled':''} onchange="pvSet('${f.id}',this.value)">
+        <option value="">— Select —</option>
+        ${opts.map(v=>`<option value="${esc(v)}" ${val===v?'selected':''}>${esc(v)}</option>`).join('')}
+      </select>`;
+    } else {
+      const va = Array.isArray(val)?val:[];
+      inp = `<div style="display:flex;flex-direction:column;gap:4px;">
+        ${opts.map(v=>`<label class="checkbox-row"><input type="checkbox" ${af?'disabled':''} ${va.includes(v)?'checked':''} onchange="pvToggle('${f.id}','${esc(v)}')">${esc(v)}</label>`).join('')}
+      </div>`;
+    }
+
+    formHtml += `<div class="pf-field ${af?'autofilled':''}">
+      <label><span>${esc(f.name)}${req?' <span style="color:var(--danger);">*</span>':''}</span>${af?'<span style="font-size:10px;background:#dbeafe;color:#1e40af;padding:1px 6px;border-radius:4px;font-weight:700;">AUTO</span>':''}</label>
+      ${inp}
+    </div>`;
+  });
+
+  document.getElementById('fp-body').innerHTML = formHtml;
+
+  // RIGHT COLUMN: Explanations
+  let explainHtml = '';
+  if (P.explanations.length) {
+    explainHtml += `<div style="font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.05em;margin-bottom:10px;">Why this result?</div>`;
+    explainHtml += P.explanations.map(e => `<div style="background:white;border:1px solid var(--border);border-radius:6px;padding:10px 12px;margin-bottom:8px;">
+      <div style="font-size:12px;font-weight:700;color:#334155;margin-bottom:3px;">${esc(e.field)} = ${esc(e.val)}</div>
+      <div style="font-size:11px;color:var(--success);font-weight:600;margin-bottom:3px;">✓ Matched: ${esc(e.matchType.replace('_',' '))} [${esc(e.matchVals.join(', '))}]</div>
+      ${e.outs.map(o=>`<div style="font-size:11px;color:var(--text-muted);padding-left:10px;">→ ${esc(o)}</div>`).join('')}
+    </div>`).join('');
+  } else {
+    explainHtml = `<div style="text-align:center;color:#cbd5e1;padding:20px;font-size:12px;">Select values in the form to see rule evaluations here.</div>`;
+  }
+
+  document.getElementById('fp-explain').innerHTML = explainHtml;
+}
+
+function pvSet(fid, v) { if (!v) delete S.preview.inputs[fid]; else S.preview.inputs[fid]=v; evaluate(); renderPreview(); }
+function pvToggle(fid, v) {
+  let c = S.preview.inputs[fid]||[];
+  if (!Array.isArray(c)) c=[c];
+  c = c.includes(v)?c.filter(x=>x!==v):[...c,v];
+  if (!c.length) delete S.preview.inputs[fid]; else S.preview.inputs[fid]=c;
+  evaluate(); renderPreview();
+}
+
+// ============================================================
+//  INTERACTIONS: PAN / DRAG NODE / DRAW EDGE
+// ============================================================
+document.getElementById('canvas-wrap').addEventListener('mousedown', e => {
+  if (e.target.closest('.node') || e.target.closest('#floating-preview') || e.target.closest('.edge-label')) return;
+  if (e.target.tagName === 'path' && e.target.classList.contains('edge-hit')) return;
+  // Deselect
+  S.sel = null; fullRender();
+  // Start pan
+  S.panning = true;
+  S._panStart = { mx: e.clientX, my: e.clientY, px: S.pan.x, py: S.pan.y };
+  const onMove = ev => {
+    S.pan.x = S._panStart.px + (ev.clientX - S._panStart.mx);
+    S.pan.y = S._panStart.py + (ev.clientY - S._panStart.my);
+    applyTransform();
+  };
+  const onUp = () => { S.panning=false; document.removeEventListener('mousemove',onMove); document.removeEventListener('mouseup',onUp); };
+  document.addEventListener('mousemove',onMove);
+  document.addEventListener('mouseup',onUp);
+});
+
+document.getElementById('canvas-wrap').addEventListener('dragover', e => e.preventDefault());
+document.getElementById('canvas-wrap').addEventListener('drop', e => {
+  e.preventDefault();
+  const fid = e.dataTransfer.getData('text/plain');
+  if (!fid || S.nodes.find(n=>n.fieldId===fid)) return;
+  const rect = document.getElementById('canvas').getBoundingClientRect();
+  const x = Math.round(((e.clientX-rect.left)/S.zoom)/20)*20;
+  const y = Math.round(((e.clientY-rect.top)/S.zoom)/20)*20;
+  S.nodes.push({fieldId:fid, x, y});
+  S.sel = {type:'node', id:fid};
+  fullRender();
+});
+
+function applyTransform() {
+  document.getElementById('canvas').style.transform = `translate(${S.pan.x}px,${S.pan.y}px) scale(${S.zoom})`;
+}
+
+function nodeMouseDown(e, fid) {
+  e.stopPropagation();
+  S.sel = {type:'node', id:fid};
+  fullRender();
+}
+
+function nodeDragStart(e, fid) {
+  e.stopPropagation();
+  S.sel = {type:'node', id:fid};
+  const start = {mx:e.clientX, my:e.clientY};
+  const node = S.nodes.find(n=>n.fieldId===fid);
+  const onMove = ev => {
+    node.x += (ev.clientX-start.mx)/S.zoom;
+    node.y += (ev.clientY-start.my)/S.zoom;
+    start.mx=ev.clientX; start.my=ev.clientY;
+    const el = document.getElementById('nd-'+fid);
+    if (el) { el.style.left=node.x+'px'; el.style.top=node.y+'px'; }
+    renderEdges();
+  };
+  const onUp = () => { document.removeEventListener('mousemove',onMove); document.removeEventListener('mouseup',onUp); };
+  document.addEventListener('mousemove',onMove);
+  document.addEventListener('mouseup',onUp);
+  fullRender();
+}
+
+function edgeDrawStart(e, srcId) {
+  e.stopPropagation();
+  e.preventDefault();
+  const sn = S.nodes.find(n=>n.fieldId===srcId);
+  S.drawing = { src:srcId, x1:sn.x+260, y1:sn.y+30, cx:sn.x+260, cy:sn.y+30 };
+
+  // Add drop-target overlays to other nodes WITHOUT re-rendering
+  S.nodes.forEach(n => {
+    if (n.fieldId === srcId) return;
+    const el = document.getElementById('nd-'+n.fieldId);
+    if (!el) return;
+    el.classList.add('drop-target');
+    const overlay = document.createElement('div');
+    overlay.className = 'edge-drop-overlay';
+    overlay.style.cssText = 'position:absolute;inset:0;z-index:10;cursor:crosshair;border-radius:var(--radius);';
+    overlay.addEventListener('mouseup', () => edgeDrawFinish(n.fieldId));
+    el.appendChild(overlay);
+  });
+
+  const surfRect = () => document.getElementById('canvas').getBoundingClientRect();
+  const onMove = ev => {
+    if (!S.drawing) return;
+    const r = surfRect();
+    S.drawing.cx = (ev.clientX-r.left)/S.zoom;
+    S.drawing.cy = (ev.clientY-r.top)/S.zoom;
+    renderEdges();
+  };
+  const onUp = () => {
+    document.removeEventListener('mousemove',onMove);
+    document.removeEventListener('mouseup',onUp);
+    cleanupDrawing();
+    if (S.drawing) { S.drawing=null; fullRender(); }
+  };
+  document.addEventListener('mousemove',onMove);
+  document.addEventListener('mouseup',onUp);
+}
+
+function cleanupDrawing() {
+  // Remove all drop overlays and drop-target classes
+  document.querySelectorAll('.edge-drop-overlay').forEach(el => el.remove());
+  document.querySelectorAll('.node.drop-target').forEach(el => el.classList.remove('drop-target'));
+}
+
+function edgeDrawFinish(tgtId) {
+  if (!S.drawing || S.drawing.src===tgtId) return;
+  const srcId = S.drawing.src;
+  S.drawing = null;
+  cleanupDrawing();
+
+  // Create rule if none exists
+  let exists = S.rules.some(r => r.src===srcId && r.outcomes.some(o=>o.target===tgtId));
+  if (!exists) {
+    const f = field(srcId);
+    S.rules.push({ id:'r_'+mkId(), src:srcId, matchType:f.type==='text'?'CONTAINS_ANY':'EXACT', matchValues:[], outcomes:[{id:'o_'+mkId(), type:'REVEAL', target:tgtId, required:false, allowed:[]}] });
+  }
+  S.sel = {type:'edge', src:srcId, tgt:tgtId};
+  fullRender();
+}
+
+function selectEdge(src, tgt) { S.sel = {type:'edge', src, tgt}; fullRender(); }
+
+// ============================================================
+//  BOTTOM PANEL TOGGLE + RESIZE
+// ============================================================
+function toggleBP() {
+  S.fpOpen = !S.fpOpen;
+  const bp = document.getElementById('bottom-panel');
+  const chev = document.getElementById('bp-chevron');
+  bp.classList.toggle('collapsed', !S.fpOpen);
+  chev.style.transform = S.fpOpen ? 'rotate(0deg)' : 'rotate(180deg)';
+}
+
+function bpResizeStart(e) {
+  e.preventDefault();
+  const bp = document.getElementById('bottom-panel');
+  const startY = e.clientY;
+  const startH = bp.offsetHeight;
+  const onMove = ev => {
+    const newH = Math.max(100, Math.min(600, startH - (ev.clientY - startY)));
+    bp.style.height = newH + 'px';
+  };
+  const onUp = () => { document.removeEventListener('mousemove',onMove); document.removeEventListener('mouseup',onUp); };
+  document.addEventListener('mousemove',onMove);
+  document.addEventListener('mouseup',onUp);
+}
+
+// ============================================================
+//  MODAL SYSTEM (no re-render on keystroke!)
+// ============================================================
+let modalData = null;
+
+function showModal(title, bodyHtml, onSave) {
+  const mount = document.getElementById('modal-mount');
+  mount.innerHTML = `<div class="modal-backdrop" id="mback" onmousedown="if(event.target===this)closeModal()">
+    <div class="modal-box">
+      <div class="modal-top"><span style="font-size:16px;font-weight:700;">${title}</span><button class="btn btn-ghost btn-sm" onclick="closeModal()"><svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg></button></div>
+      <div class="modal-mid" id="modal-body">${bodyHtml}</div>
+      <div class="modal-bot"><button class="btn btn-outline" onclick="closeModal()">Cancel</button><button class="btn btn-primary" id="modal-save-btn">Save</button></div>
+    </div>
+  </div>`;
+  document.getElementById('modal-save-btn').onclick = onSave;
+  requestAnimationFrame(() => document.getElementById('mback').classList.add('open'));
+}
+
+function closeModal() {
+  const mb = document.getElementById('mback');
+  if (mb) { mb.classList.remove('open'); setTimeout(()=>document.getElementById('modal-mount').innerHTML='', 200); }
+  modalData = null;
+}
+
+// -- Field modal --
+function openFieldModal(fid) {
+  const isNew = !fid;
+  const f = isNew ? {id:'',name:'',type:'single-select',values:[]} : {...field(fid), values:[...field(fid).values]};
+  modalData = f;
+
+  const body = `
+    <div class="form-group">
+      <label class="form-label">Field Name</label>
+      <input type="text" class="form-control" id="m-fname" value="${esc(f.name)}" placeholder="e.g. Department">
+    </div>
+    <div class="form-group">
+      <label class="form-label">Type</label>
+      <select class="form-control" id="m-ftype">
+        <option value="single-select" ${f.type==='single-select'?'selected':''}>Single-select</option>
+        <option value="multi-select" ${f.type==='multi-select'?'selected':''}>Multi-select</option>
+        <option value="text" ${f.type==='text'?'selected':''}>Text Input</option>
+      </select>
+    </div>
+    <div class="form-group" id="m-vals-wrap">
+      <label class="form-label">Options <span class="form-hint">(one per line)</span></label>
+      <textarea class="form-control" id="m-fvals" rows="6" placeholder="Enter one option per line">${esc(f.values.join('\n'))}</textarea>
+    </div>
+  `;
+
+  showModal(isNew?'Create New Field':'Edit Field', body, () => {
+    const name = document.getElementById('m-fname').value.trim();
+    if (!name) { alert('Name is required.'); return; }
+    const type = document.getElementById('m-ftype').value;
+    const valsRaw = document.getElementById('m-fvals').value;
+    const values = type!=='text' ? valsRaw.split('\n').map(s=>s.trim()).filter(Boolean) : [];
+    if (isNew) {
+      const nf = {id:'f_'+mkId(), name, type, values};
+      S.fields.push(nf);
+    } else {
+      const idx = S.fields.findIndex(x=>x.id===f.id);
+      S.fields[idx] = {...S.fields[idx], name, type, values};
+    }
+    closeModal(); fullRender();
+  });
+
+  // Toggle values visibility based on type
+  document.getElementById('m-ftype').addEventListener('change', function() {
+    document.getElementById('m-vals-wrap').style.display = this.value==='text'?'none':'block';
+  });
+  if (f.type==='text') document.getElementById('m-vals-wrap').style.display = 'none';
+}
+
+// -- Condition modal --
+function openConditionModal(ruleId) {
+  const r = S.rules.find(x=>x.id===ruleId);
+  const sf = field(r.src);
+  let selected = [...r.matchValues];
+
+  const body = `
+    <div class="form-group">
+      <label class="form-label">Match Mode</label>
+      <select class="form-control" id="m-matchtype">
+        <option value="EXACT" ${r.matchType==='EXACT'?'selected':''}>Is Exactly (highest priority)</option>
+        <option value="CONTAINS_ALL" ${r.matchType==='CONTAINS_ALL'?'selected':''}>Contains All</option>
+        <option value="CONTAINS_ANY" ${r.matchType==='CONTAINS_ANY'?'selected':''}>Contains Any (lowest priority)</option>
+      </select>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Trigger Values for <span style="color:var(--primary);">${esc(sf.name)}</span></label>
+      <div style="border:1px solid var(--border-dark);border-radius:6px;padding:8px;max-height:220px;overflow-y:auto;" id="m-matchvals">
+        ${sf.values.map(v => `<label class="checkbox-row"><input type="checkbox" value="${esc(v)}" ${selected.includes(v)?'checked':''}>${esc(v)}</label>`).join('')}
+      </div>
+    </div>
+  `;
+
+  showModal('Configure Condition', body, () => {
+    r.matchType = document.getElementById('m-matchtype').value;
+    r.matchValues = [...document.getElementById('m-matchvals').querySelectorAll('input:checked')].map(i=>i.value);
+    closeModal(); fullRender();
+  });
+}
+
+// -- Outcome modal --
+function openOutcomeModal(ruleId, outcomeId) {
+  const r = S.rules.find(x=>x.id===ruleId);
+  const o = r.outcomes.find(x=>x.id===outcomeId);
+  const tf = field(o.target);
+
+  let body = '';
+  if (o.type === 'AUTOFILL') {
+    body = `
+      <div class="form-group">
+        <label class="form-label">Target Field</label>
+        <input class="form-control" disabled value="${esc(tf.name)}">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Value to Auto-fill</label>
+        ${tf.type==='text'
+          ? `<input type="text" class="form-control" id="m-afval" value="${esc(o.value||'')}">`
+          : `<select class="form-control" id="m-afval"><option value="">— Select —</option>${tf.values.map(v=>`<option value="${esc(v)}" ${o.value===v?'selected':''}>${esc(v)}</option>`).join('')}</select>`
+        }
+      </div>
+    `;
+    showModal('Configure Auto-fill', body, () => {
+      o.value = document.getElementById('m-afval').value;
+      closeModal(); fullRender();
+    });
+  } else {
+    let allowed = o.allowed && o.allowed.length ? [...o.allowed] : [...tf.values];
+    body = `
+      <div class="form-group">
+        <label class="form-label">Target Field</label>
+        <input class="form-control" disabled value="${esc(tf.name)}">
+      </div>
+      <div class="form-group" style="background:#f8fafc;border:1px solid var(--border);border-radius:8px;padding:12px;">
+        <label class="checkbox-row" style="font-weight:600;"><input type="checkbox" id="m-req" ${o.required?'checked':''}> Make this field required</label>
+      </div>
+      ${tf.type!=='text' ? `<div class="form-group" style="margin-top:16px;">
+        <label class="form-label">Allowed Options</label>
+        <div class="form-hint" style="margin-bottom:8px;">Uncheck to hide options from the user.</div>
+        <div style="border:1px solid var(--border-dark);border-radius:6px;padding:8px;max-height:220px;overflow-y:auto;" id="m-allowed">
+          ${tf.values.map(v => `<label class="checkbox-row"><input type="checkbox" value="${esc(v)}" ${allowed.includes(v)?'checked':''}>${esc(v)}</label>`).join('')}
+        </div>
+      </div>` : ''}
+    `;
+    showModal('Configure Reveal', body, () => {
+      o.required = document.getElementById('m-req').checked;
+      const ae = document.getElementById('m-allowed');
+      if (ae) o.allowed = [...ae.querySelectorAll('input:checked')].map(i=>i.value);
+      closeModal(); fullRender();
+    });
+  }
+}
+
+// ============================================================
+//  DATA ACTIONS
+// ============================================================
+function removeNode(fid) {
+  const affected = S.rules.filter(r => r.src===fid || r.outcomes.some(o=>o.target===fid));
+  if (affected.length && !confirm('This will remove connected rules. Continue?')) return;
+  S.rules = S.rules.filter(r => r.src!==fid);
+  S.rules.forEach(r => r.outcomes = r.outcomes.filter(o=>o.target!==fid));
+  S.nodes = S.nodes.filter(n=>n.fieldId!==fid);
+  S.sel = null;
+  fullRender();
+}
+
+function addRuleForEdge(src, tgt) {
+  const f = field(src);
+  S.rules.push({ id:'r_'+mkId(), src, matchType:f.type==='text'?'CONTAINS_ANY':'EXACT', matchValues:[], outcomes:[{id:'o_'+mkId(), type:'REVEAL', target:tgt, required:false, allowed:[]}] });
+  fullRender();
+}
+
+function deleteRule(rid) {
+  if (confirm('Delete this rule?')) { S.rules = S.rules.filter(r=>r.id!==rid); fullRender(); }
+}
+
+function addOutcome(rid, tgt, type) {
+  const r = S.rules.find(x=>x.id===rid);
+  const o = {id:'o_'+mkId(), type, target:tgt};
+  if (type==='AUTOFILL') o.value = '';
+  else { o.required = false; o.allowed = []; }
+  r.outcomes.push(o);
+  fullRender();
+}
+
+function deleteOutcome(rid, oid) {
+  const r = S.rules.find(x=>x.id===rid);
+  r.outcomes = r.outcomes.filter(o=>o.id!==oid);
+  fullRender();
+}
+
+function resetAll() { S = freshState(); fullRender(); }
+
+// ============================================================
+//  FULL RENDER
+// ============================================================
+function fullRender() {
+  evaluate();
+  renderInventory();
+  renderNodes();
+  renderEdges();
+  renderRight();
+  renderPreview();
+}
+
+fullRender();
+</script>
+</body>
+</html>
