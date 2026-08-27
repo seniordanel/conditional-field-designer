@@ -1,0 +1,43 @@
+<div
+  #surface
+  class="surface"
+  [style.width.px]="canvasSize"
+  [style.height.px]="canvasSize"
+  [style.transform]="transform()"
+>
+  <cfd-graph-edge-layer />
+
+  @for (node of store.nodes(); track node.fieldId) {
+    @if (store.field(node.fieldId); as field) {
+      <cfd-field-node
+        [node]="node"
+        [field]="field"
+        [selected]="isNodeSelected(node.fieldId)"
+        [dropTarget]="isDropTarget(node.fieldId)"
+        (select)="store.selectNode(node.fieldId)"
+        (headPointerDown)="startNodeDrag($event, node.fieldId)"
+        (portPointerDown)="startEdgeDraw($event, node.fieldId)"
+      />
+    }
+  }
+
+  @for (edge of store.edges(); track edge.src + '>' + edge.target) {
+    @if (edge.label) {
+      <cfd-edge-label
+        [edge]="edge"
+        [selected]="isEdgeSelected(edge.src, edge.target)"
+        (select)="store.selectEdge(edge.src, edge.target)"
+      />
+    }
+  }
+</div>
+
+@if (!store.nodes().length) {
+  <p class="hint">Drag a field from the left to start designing.</p>
+}
+
+<div class="zoom">
+  <button type="button" class="btn btn-ghost btn-xs" aria-label="Zoom out" (click)="stepZoom(0.9)">−</button>
+  <span class="level">{{ zoomPercent() }}%</span>
+  <button type="button" class="btn btn-ghost btn-xs" aria-label="Zoom in" (click)="stepZoom(1.1)">+</button>
+</div>
