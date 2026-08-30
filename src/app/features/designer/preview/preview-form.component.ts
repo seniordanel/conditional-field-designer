@@ -9,6 +9,8 @@ interface PreviewRow {
   readonly options: readonly string[];
   readonly required: boolean;
   readonly autofilled: boolean;
+  /** Locked because the constraints left exactly one legal answer, not because of an auto-fill. */
+  readonly onlyOption: boolean;
 }
 
 /** The form an end user would actually see, rebuilt on every rule evaluation. */
@@ -32,6 +34,7 @@ interface PreviewRow {
         [options]="row.options"
         [required]="row.required"
         [autofilled]="row.autofilled"
+        [onlyOption]="row.onlyOption"
         (valueChange)="store.setPreviewValue(row.field.id, $event)"
         (optionToggle)="store.togglePreviewValue(row.field.id, $event)"
       />
@@ -78,15 +81,17 @@ export class PreviewFormComponent {
       if (!field) continue;
 
       const autofill = evaluation.autofills[fieldId];
+      const resolved = evaluation.resolved[fieldId];
       const constraint = evaluation.constraints[fieldId];
       const allowed = constraint?.allowed ?? [];
 
       rows.push({
         field,
-        value: autofill !== undefined ? autofill : inputs[fieldId],
+        value: autofill ?? resolved ?? inputs[fieldId],
         options: allowed.length ? allowed : field.values,
         required: constraint?.required ?? false,
         autofilled: autofill !== undefined,
+        onlyOption: autofill === undefined && resolved !== undefined,
       });
     }
     return rows;

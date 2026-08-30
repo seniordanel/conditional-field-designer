@@ -8,7 +8,7 @@ import type { FieldDefinition, FieldValue } from '../../../core/models';
 @Component({
   selector: 'cfd-preview-field',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  host: { '[class.autofilled]': 'autofilled()' },
+  host: { '[class.autofilled]': 'locked()' },
   template: `
     <label class="label" [attr.for]="inputId()">
       <span>
@@ -19,6 +19,8 @@ import type { FieldDefinition, FieldValue } from '../../../core/models';
       </span>
       @if (autofilled()) {
         <span class="auto">Auto</span>
+      } @else if (onlyOption()) {
+        <span class="auto sole">Only option</span>
       }
     </label>
 
@@ -29,7 +31,7 @@ import type { FieldDefinition, FieldValue } from '../../../core/models';
           class="form-control"
           [id]="inputId()"
           [value]="singleValue()"
-          [readOnly]="autofilled()"
+          [readOnly]="locked()"
           (change)="valueChange.emit($any($event.target).value)"
         />
       }
@@ -37,7 +39,7 @@ import type { FieldDefinition, FieldValue } from '../../../core/models';
         <select
           class="form-control"
           [id]="inputId()"
-          [disabled]="autofilled()"
+          [disabled]="locked()"
           (change)="valueChange.emit($any($event.target).value)"
         >
           <option value="" [selected]="!singleValue()">— Select —</option>
@@ -52,7 +54,7 @@ import type { FieldDefinition, FieldValue } from '../../../core/models';
             <label class="checkbox-row">
               <input
                 type="checkbox"
-                [disabled]="autofilled()"
+                [disabled]="locked()"
                 [checked]="isChecked(option)"
                 (change)="optionToggle.emit(option)"
               />
@@ -98,6 +100,10 @@ import type { FieldDefinition, FieldValue } from '../../../core/models';
       font-weight: 700;
       text-transform: uppercase;
     }
+    .auto.sole {
+      background: #e2e8f0;
+      color: #475569;
+    }
     .checks {
       display: flex;
       flex-direction: column;
@@ -116,11 +122,13 @@ export class PreviewFieldComponent {
   readonly options = input<readonly string[]>([]);
   readonly required = input(false);
   readonly autofilled = input(false);
+  readonly onlyOption = input(false);
 
   readonly valueChange = output<string>();
   readonly optionToggle = output<string>();
 
   protected readonly inputId = computed(() => `preview-${this.field().id}`);
+  protected readonly locked = computed(() => this.autofilled() || this.onlyOption());
 
   protected readonly singleValue = computed(() => {
     const value = this.value();

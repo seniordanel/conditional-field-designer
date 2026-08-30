@@ -204,6 +204,119 @@ describe('RuleEngineService', () => {
     expect(result.explanations.map((e) => e.fieldName)).toEqual(['Building', 'City']);
   });
 
+  it('selects the value when a required reveal leaves exactly one option', () => {
+    const rules: Rule[] = [
+      {
+        id: 'r1',
+        src: 'building',
+        matchType: 'EXACT',
+        matchValues: ['London'],
+        outcomes: [{ id: 'o1', type: 'REVEAL', target: 'floor', required: true, allowed: ['2'] }],
+      },
+    ];
+
+    const result = run(rules, { building: 'London' });
+
+    expect(result.resolved['floor']).toBe('2');
+  });
+
+  it('leaves an optional single-option field for the user to answer', () => {
+    const rules: Rule[] = [
+      {
+        id: 'r1',
+        src: 'building',
+        matchType: 'EXACT',
+        matchValues: ['London'],
+        outcomes: [{ id: 'o1', type: 'REVEAL', target: 'floor', required: false, allowed: ['2'] }],
+      },
+    ];
+
+    expect(run(rules, { building: 'London' }).resolved['floor']).toBeUndefined();
+  });
+
+  it('does not settle a field that still offers a real choice', () => {
+    const rules: Rule[] = [
+      {
+        id: 'r1',
+        src: 'building',
+        matchType: 'EXACT',
+        matchValues: ['London'],
+        outcomes: [
+          { id: 'o1', type: 'REVEAL', target: 'floor', required: true, allowed: ['1', '2'] },
+        ],
+      },
+    ];
+
+    expect(run(rules, { building: 'London' }).resolved['floor']).toBeUndefined();
+  });
+
+  it('settles on the field\'s own value when it has one and the reveal adds no allow-list', () => {
+    const oneValueField: FieldDefinition[] = [
+      ...FIELDS,
+      { id: 'currency', name: 'Currency', type: 'single-select', values: ['GBP'] },
+    ];
+    const rules: Rule[] = [
+      {
+        id: 'r1',
+        src: 'building',
+        matchType: 'EXACT',
+        matchValues: ['London'],
+        outcomes: [{ id: 'o1', type: 'REVEAL', target: 'currency', required: true, allowed: [] }],
+      },
+    ];
+
+    const result = engine.evaluate({
+      fields: oneValueField,
+      nodes: [...NODES, { fieldId: 'currency', x: 0, y: 0 }],
+      rules,
+      inputs: { building: 'London' },
+    });
+
+    expect(result.resolved['currency']).toBe('GBP');
+  });
+
+  it('completes a whole chain from one selection', () => {
+    // Building settles Floor, Floor settles Justification — none of them typed by the user.
+    const rules: Rule[] = [
+      {
+        id: 'r1',
+        src: 'building',
+        matchType: 'EXACT',
+        matchValues: ['London'],
+        outcomes: [{ id: 'o1', type: 'REVEAL', target: 'floor', required: true, allowed: ['3'] }],
+      },
+      {
+        id: 'r2',
+        src: 'floor',
+        matchType: 'CONTAINS_ANY',
+        matchValues: ['3'],
+        outcomes: [{ id: 'o2', type: 'REVEAL', target: 'city', required: true, allowed: [] }],
+      },
+    ];
+
+    const result = run(rules, { building: 'London' });
+
+    expect(result.resolved['floor']).toBe('3');
+    expect(result.visible).toContain('city');
+    expect(result.explanations.map((e) => e.fieldName)).toEqual(['Building', 'Floor']);
+  });
+
+  it('reports a settled value in the explanation', () => {
+    const rules: Rule[] = [
+      {
+        id: 'r1',
+        src: 'building',
+        matchType: 'EXACT',
+        matchValues: ['London'],
+        outcomes: [{ id: 'o1', type: 'REVEAL', target: 'floor', required: true, allowed: ['2'] }],
+      },
+    ];
+
+    expect(run(rules, { building: 'London' }).explanations[0].effects).toEqual([
+      'Reveal Floor = "2" (only option)',
+    ]);
+  });
+
   it('halts and reports an error when two rules fight over the same value', () => {
     const rules: Rule[] = [
       {

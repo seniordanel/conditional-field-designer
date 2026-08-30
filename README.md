@@ -86,6 +86,12 @@ once a rule reveals or auto-fills it — and because revealing a field lets that
 rules fire, evaluation runs to a fixpoint (capped at 50 passes, after which a cycle is
 reported).
 
+A required field whose constraints leave exactly **one** option has no other legal answer, so
+the engine selects it rather than asking. That value then feeds the next pass, so a single
+choice can settle a whole chain — pick a building, and the floor, and whatever the floor
+reveals, fall out on their own. Optional fields are never settled this way; a user may
+legitimately leave one blank.
+
 When several rules share a source field, the most specific match type wins:
 `EXACT` > `CONTAINS_ALL` > `CONTAINS_ANY`. Every rule tied at the winning priority fires, so
 one field can legitimately drive several targets at once.
@@ -115,3 +121,5 @@ Observable with success and error branches.
 - **Wheel zoom and a zoom control were added.** The prototype tracked a `zoom` value in state
   but never exposed a way to change it.
 - **A dot grid was added to the canvas** so panning has a visual reference.
+- **Required single-option fields settle themselves.** The prototype left them unanswered, which
+  stopped the cascade at the first field the user had no real choice about.

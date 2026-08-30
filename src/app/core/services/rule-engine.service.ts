@@ -2,6 +2,7 @@ import { Injectable } from '@angular/core';
 import {
   MATCH_TYPE_PRIORITY,
   isAutofill,
+  isReveal,
   type CanvasNode,
   type EvaluationResult,
   type FieldConstraint,
@@ -9,6 +10,7 @@ import {
   type FieldValue,
   type Rule,
   type RuleExplanation,
+  type RuleOutcome,
 } from '../models';
 
 /** Guards against rule cycles (A reveals B, B reveals A) locking the UI up. */
@@ -44,10 +46,13 @@ export class RuleEngineService {
     );
     const constraints: Record<string, FieldConstraint> = {};
     const autofills: Record<string, string> = {};
+    const resolved: Record<string, string> = {};
     const errors: string[] = [];
 
+    // An explicit auto-fill outranks a value the engine settled on, which outranks the answer
+    // the user typed — a locked field's own input can no longer be what drives the rules.
     const valueOf = (fieldId: string): FieldValue | undefined =>
-      autofills[fieldId] !== undefined ? autofills[fieldId] : inputs[fieldId];
+      autofills[fieldId] ?? resolved[fieldId] ?? inputs[fieldId];
 
     let changed = true;
     let iterations = 0;
@@ -69,6 +74,13 @@ export class RuleEngineService {
           } else if (!visible.has(outcome.target)) {
             visible.add(outcome.target);
             constraints[outcome.target] = { required: outcome.required, allowed: outcome.allowed };
+
+            // A required field left with a single option has no other legal answer, so settle
+            // it here. `changed` is already true, so the next pass sees the value and any rule
+            // keyed on this field fires — which is what lets one choice complete a whole chain.
+            const only = this.onlyOption(outcome, fieldById.get(outcome.target));
+            if (only !== null) resolved[outcome.target] = only;
+
             changed = true;
           }
         }
@@ -85,7 +97,7 @@ export class RuleEngineService {
       this.explain(rule, fieldById, valueOf(rule.src)),
     );
 
-    return { visible: [...visible], constraints, autofills, explanations, errors };
+    return { visible: [...visible], constraints, autofills, resolved, explanations, errors };
   }
 
   /**
@@ -114,6 +126,18 @@ export class RuleEngineService {
       winners.push(...bucket.filter((r) => MATCH_TYPE_PRIORITY[r.matchType] === topPriority));
     }
     return winners;
+  }
+
+  /**
+   * The single value a REVEAL leaves available, or null when the user still has a real choice.
+   * Only mandatory fields settle themselves — an optional field may legitimately stay blank.
+   */
+  private onlyOption(outcome: RuleOutcome, target: FieldDefinition | undefined): string | null {
+    if (!target || target.type === 'text') return null;
+    if (!isReveal(outcome) || !outcome.required) return null;
+
+    const options = outcome.allowed.length ? outcome.allowed : target.values;
+    return options.length === 1 ? options[0] : null;
   }
 
   private matches(rule: Rule, value: FieldValue | undefined): boolean {
@@ -145,8 +169,11 @@ export class RuleEngineService {
       .map((outcome) => {
         const target = fieldById.get(outcome.target);
         if (!target) return '';
-        return isAutofill(outcome)
-          ? `Auto-fill ${target.name} = "${outcome.value}"`
+        if (isAutofill(outcome)) return `Auto-fill ${target.name} = "${outcome.value}"`;
+
+        const only = this.onlyOption(outcome, target);
+        return only !== null
+          ? `Reveal ${target.name} = "${only}" (only option)`
           : `Reveal ${target.name}`;
       })
       .filter(Boolean);

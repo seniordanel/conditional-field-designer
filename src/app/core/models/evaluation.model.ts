@@ -19,7 +19,13 @@ export interface RuleExplanation {
 export interface EvaluationResult {
   readonly visible: readonly string[];
   readonly constraints: Readonly<Record<string, FieldConstraint>>;
+  /** Values set by an AUTOFILL outcome, from a literal the admin typed. */
   readonly autofills: Readonly<Record<string, string>>;
+  /**
+   * Values the engine settled on by itself: a required field whose constraints left exactly
+   * one option has no other legal answer, so it is selected rather than asked for.
+   */
+  readonly resolved: Readonly<Record<string, string>>;
   readonly explanations: readonly RuleExplanation[];
   readonly errors: readonly string[];
 }
@@ -28,6 +34,7 @@ export const EMPTY_EVALUATION: EvaluationResult = {
   visible: [],
   constraints: {},
   autofills: {},
+  resolved: {},
   explanations: [],
   errors: [],
 };
