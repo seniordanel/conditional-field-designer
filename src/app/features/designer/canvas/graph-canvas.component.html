@@ -13,6 +13,7 @@
         [node]="node"
         [field]="field"
         [selected]="isNodeSelected(node.fieldId)"
+        [selectionOverride]="store.selectionOverrides().get(node.fieldId) ?? null"
         [dropTarget]="isDropTarget(node.fieldId)"
         (select)="store.selectNode(node.fieldId)"
         (headPointerDown)="startNodeDrag($event, node.fieldId)"

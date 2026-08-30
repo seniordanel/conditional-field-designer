@@ -1,5 +1,14 @@
 import { ChangeDetectionStrategy, Component, computed, input, output } from '@angular/core';
-import { FIELD_TYPE_BADGES, NODE_WIDTH, type CanvasNode, type FieldDefinition, type FieldType } from '../../../core/models';
+import {
+  FIELD_TYPE_BADGES,
+  FIELD_TYPE_DESCRIPTIONS,
+  NODE_WIDTH,
+  SELECTION_MODE_LABELS,
+  type CanvasNode,
+  type FieldDefinition,
+  type FieldType,
+  type SelectionMode,
+} from '../../../core/models';
 
 const TYPE_COLORS: Record<FieldType, { bg: string; fg: string }> = {
   text: { bg: '#fef3c7', fg: '#92400e' },
@@ -26,8 +35,16 @@ const TYPE_COLORS: Record<FieldType, { bg: string; fg: string }> = {
   template: `
     <header class="head" (pointerdown)="onHeadPointerDown($event)">
       <span class="head-name">{{ field().name }}</span>
-      <span class="badge" [style.background]="colors().bg" [style.color]="colors().fg">
+      <span
+        class="badge"
+        [style.background]="colors().bg"
+        [style.color]="colors().fg"
+        [title]="badgeTitle()"
+      >
         {{ badge() }}
+        @if (overrideBadge(); as mode) {
+          <span class="badge-override">{{ mode }}</span>
+        }
       </span>
     </header>
 
@@ -60,6 +77,8 @@ export class FieldNodeComponent {
   readonly node = input.required<CanvasNode>();
   readonly field = input.required<FieldDefinition>();
   readonly selected = input(false);
+  /** Set when some reveal presents this field as the opposite selection mode. */
+  readonly selectionOverride = input<{ mode: SelectionMode; count: number } | null>(null);
   readonly dropTarget = input(false);
 
   readonly select = output<void>();
@@ -68,6 +87,22 @@ export class FieldNodeComponent {
 
   protected readonly width = NODE_WIDTH;
   protected readonly badge = computed(() => FIELD_TYPE_BADGES[this.field().type]);
+
+  /** Short label for the mode this field is revealed as, or null when nothing overrides it. */
+  protected readonly overrideBadge = computed(() => {
+    const override = this.selectionOverride();
+    return override ? (override.mode === 'single' ? 'SINGLE' : 'MULTI') : null;
+  });
+
+  protected readonly badgeTitle = computed(() => {
+    const field = this.field();
+    const declared = FIELD_TYPE_DESCRIPTIONS[field.type];
+    const override = this.selectionOverride();
+    if (!override) return declared;
+
+    const rules = override.count === 1 ? '1 rule reveals' : `${override.count} rules reveal`;
+    return `${declared}. ${rules} it as ${SELECTION_MODE_LABELS[override.mode].toLowerCase()}.`;
+  });
   protected readonly colors = computed(() => TYPE_COLORS[this.field().type]);
 
   protected onSelect(event: PointerEvent): void {

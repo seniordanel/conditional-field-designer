@@ -1,6 +1,7 @@
 import { Injectable, computed, inject, signal } from '@angular/core';
 import {
   GRID_SNAP,
+  isReveal,
   MAX_ZOOM,
   MIN_ZOOM,
   type AutofillOutcome,
@@ -69,6 +70,34 @@ export class DesignerStore {
   readonly fieldById = computed(() => new Map(this._fields().map((f) => [f.id, f])));
   readonly placedFieldIds = computed(() => new Set(this._nodes().map((n) => n.fieldId)));
   readonly edges = computed(() => buildEdges(this._nodes(), this._rules()));
+
+  /**
+   * Fields whose declared selection mode some reveal contradicts, and what it presents them as
+   * instead. A deviation can only ever be the opposite mode, so one entry per field is enough;
+   * the count is what the canvas badge reports. Overrides that merely restate the field's own
+   * type are not deviations and are left out.
+   */
+  readonly selectionOverrides = computed(() => {
+    const byField = this.fieldById();
+    const overrides = new Map<string, { mode: SelectionMode; count: number }>();
+
+    for (const rule of this._rules()) {
+      for (const outcome of rule.outcomes) {
+        if (!isReveal(outcome) || !outcome.selectionMode) continue;
+
+        const target = byField.get(outcome.target);
+        if (!target || target.type === 'text') continue;
+
+        const declared: SelectionMode = target.type === 'single-select' ? 'single' : 'multi';
+        if (outcome.selectionMode === declared) continue;
+
+        const existing = overrides.get(outcome.target);
+        if (existing) existing.count += 1;
+        else overrides.set(outcome.target, { mode: outcome.selectionMode, count: 1 });
+      }
+    }
+    return overrides;
+  });
 
   readonly evaluation = computed(() =>
     this.engine.evaluate({

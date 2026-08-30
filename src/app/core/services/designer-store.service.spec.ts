@@ -92,6 +92,31 @@ describe('DesignerStore', () => {
     expect('selectionMode' in outcome).toBeFalse();
   });
 
+  it('flags a field whose declared selection mode a reveal contradicts', () => {
+    // f4 (Floor) is declared multi-select; r2/o5 reveals it for London HQ.
+    store.updateReveal('r2', 'o5', { required: true, allowed: [], selectionMode: 'single' });
+
+    expect(store.selectionOverrides().get('f4')).toEqual({ mode: 'single', count: 1 });
+  });
+
+  it('counts every rule that contradicts the declared mode', () => {
+    store.updateReveal('r2', 'o5', { required: true, allowed: [], selectionMode: 'single' });
+    store.updateReveal('r3', 'o8', { required: true, allowed: [], selectionMode: 'single' });
+
+    expect(store.selectionOverrides().get('f4')?.count).toBe(2);
+  });
+
+  it('ignores an override that merely restates the field\'s own mode', () => {
+    // Floor is already multi-select, so this changes nothing the user would see.
+    store.updateReveal('r2', 'o5', { required: true, allowed: [], selectionMode: 'multi' });
+
+    expect(store.selectionOverrides().has('f4')).toBeFalse();
+  });
+
+  it('reports no overrides on an untouched design', () => {
+    expect(store.selectionOverrides().size).toBe(0);
+  });
+
   it('tracks unsaved changes against the last saved snapshot', () => {
     expect(store.isDirty()).toBeTrue();
 

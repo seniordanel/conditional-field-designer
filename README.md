@@ -88,12 +88,21 @@ differently depending on which value triggered it.
 | --- | --- |
 | Required | Marks the revealed field with `*`, and lets it settle itself when one option remains |
 | Allowed options | Narrows a choice field to a subset of its values |
-| **Selection mode** | Overrides how a choice field is presented — single-select or multi-select |
+| **Selection mode** | Presents a choice field as the opposite mode — single instead of multi, or the reverse |
 
 **Selection mode** covers the case where a dependent's cardinality depends on the parent value:
 `Building = London HQ` reveals `Floor` as a single-select, while `Building = New York HQ`
 reveals the very same `Floor` field as a multi-select. It applies only to choice fields; text
-fields ignore it. Leaving it on *"Use the field's own type"* keeps the field's declared type.
+fields ignore it. Since a choice field is either single or multi, the only override worth
+offering is the opposite of what the field declares — so it is a single checkbox
+(*"Present as single-select instead"*), not a mode picker that would let you pick the mode the
+field already has.
+
+Because an override makes the field's declared type an incomplete story, the canvas says so:
+a node whose selection mode some reveal contradicts shows a segmented badge — `MULTI│SINGLE`
+reads "declared multi-select, revealed somewhere as single-select" — with the exact count in
+the badge's tooltip. Nodes nobody overrides are left alone, and an override that merely
+restates the field's own type is not a contradiction, so it changes nothing.
 
 It is additive and optional in the saved JSON — an outcome that does not set it omits the key
 entirely, and a missing `selectionMode` reads as "inherit", so schemas saved before this option

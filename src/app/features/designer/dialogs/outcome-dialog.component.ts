@@ -1,6 +1,11 @@
 import { ChangeDetectionStrategy, Component, OnInit, computed, inject, input, signal } from '@angular/core';
 import { FormControl, ReactiveFormsModule } from '@angular/forms';
-import { FIELD_TYPE_LABELS, isAutofill, type SelectionMode } from '../../../core/models';
+import {
+  FIELD_TYPE_LABELS,
+  SELECTION_MODE_LABELS,
+  isAutofill,
+  type SelectionMode,
+} from '../../../core/models';
 import { DesignerStore } from '../../../core/services/designer-store.service';
 import { DialogService } from '../../../core/services/dialog.service';
 import { ModalShellComponent } from '../../../shared/components/modal-shell/modal-shell.component';
@@ -36,27 +41,23 @@ import { ModalShellComponent } from '../../../shared/components/modal-shell/moda
           }
         </div>
       } @else {
-        <div class="form-group required-box">
+        <div class="form-group toggle-box">
           <label class="checkbox-row strong">
             <input type="checkbox" [formControl]="required" />
             Make this field required
           </label>
-        </div>
 
-        @if (targetIsChoice()) {
-          <div class="form-group">
-            <label class="form-label" for="selection-mode">Selection Mode</label>
-            <select id="selection-mode" class="form-control" [formControl]="selectionMode">
-              <option value="">Use the field's own type ({{ defaultModeLabel() }})</option>
-              <option value="single">Single-select</option>
-              <option value="multi">Multi-select</option>
-            </select>
-            <p class="form-hint">
-              Overrides how the field is presented whenever this rule reveals it, so one field can
-              be single-select for one trigger value and multi-select for another.
+          @if (targetIsChoice()) {
+            <label class="checkbox-row strong">
+              <input type="checkbox" [formControl]="overrideSelection" />
+              {{ overrideLabel() }}
+            </label>
+            <p class="form-hint indented">
+              This field is {{ declaredLabel() }} by default. Ticking this changes how it is
+              presented when <em>this</em> rule reveals it, and nowhere else.
             </p>
-          </div>
-        }
+          }
+        </div>
 
         @if (targetValues().length) {
           <div class="form-group">
@@ -76,7 +77,7 @@ import { ModalShellComponent } from '../../../shared/components/modal-shell/moda
     </cfd-modal-shell>
   `,
   styles: `
-    .required-box {
+    .toggle-box {
       background: #f8fafc;
       border: 1px solid var(--border);
       border-radius: 8px;
@@ -87,6 +88,9 @@ import { ModalShellComponent } from '../../../shared/components/modal-shell/moda
     }
     .spaced {
       margin-bottom: 8px;
+    }
+    .indented {
+      margin: 2px 0 0 32px;
     }
   `,
 })
@@ -100,7 +104,7 @@ export class OutcomeDialogComponent implements OnInit {
   protected readonly value = new FormControl('', { nonNullable: true });
   protected readonly required = new FormControl(false, { nonNullable: true });
   /** `''` means "inherit the field's own type". */
-  protected readonly selectionMode = new FormControl<'' | SelectionMode>('', { nonNullable: true });
+  protected readonly overrideSelection = new FormControl(false, { nonNullable: true });
   protected readonly allowed = signal<ReadonlySet<string>>(new Set());
 
   private readonly outcome = computed(() => this.store.outcome(this.ruleId(), this.outcomeId()));
@@ -119,9 +123,24 @@ export class OutcomeDialogComponent implements OnInit {
     const type = this.targetField()?.type;
     return !!type && type !== 'text';
   });
-  protected readonly defaultModeLabel = computed(() => {
+  protected readonly declaredLabel = computed(() => {
     const type = this.targetField()?.type;
-    return type ? FIELD_TYPE_LABELS[type] : '';
+    return type ? FIELD_TYPE_LABELS[type].toLowerCase() : '';
+  });
+
+  /**
+   * A choice field is either single or multi, so the only override worth offering is the
+   * opposite of what the field already declares.
+   */
+  protected readonly oppositeMode = computed<SelectionMode | null>(() => {
+    const type = this.targetField()?.type;
+    if (!type || type === 'text') return null;
+    return type === 'single-select' ? 'multi' : 'single';
+  });
+
+  protected readonly overrideLabel = computed(() => {
+    const opposite = this.oppositeMode();
+    return opposite ? `Present as ${SELECTION_MODE_LABELS[opposite].toLowerCase()} instead` : '';
   });
 
   ngOnInit(): void {
@@ -134,7 +153,9 @@ export class OutcomeDialogComponent implements OnInit {
     }
 
     this.required.setValue(outcome.required);
-    this.selectionMode.setValue(outcome.selectionMode ?? '');
+    this.overrideSelection.setValue(
+      !!outcome.selectionMode && outcome.selectionMode === this.oppositeMode(),
+    );
     // An empty allow-list means "no restriction", so show every option as checked.
     this.allowed.set(new Set(outcome.allowed.length ? outcome.allowed : this.targetValues()));
   }
@@ -154,7 +175,7 @@ export class OutcomeDialogComponent implements OnInit {
       this.store.updateReveal(this.ruleId(), this.outcomeId(), {
         required: this.required.value,
         allowed: [...this.allowed()],
-        selectionMode: this.selectionMode.value || null,
+        selectionMode: this.overrideSelection.value ? this.oppositeMode() : null,
       });
     }
     this.dialogs.close();
