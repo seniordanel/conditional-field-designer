@@ -68,6 +68,30 @@ describe('DesignerStore', () => {
     expect(store.previewInputs()['f2']).toBeUndefined();
   });
 
+  it('persists a selection mode on a reveal outcome', () => {
+    // r1 / o1 is the seeded "Request Type -> reveal Department" outcome.
+    store.updateReveal('r1', 'o1', {
+      required: true,
+      allowed: ['HR'],
+      selectionMode: 'single',
+    });
+
+    expect(store.outcome('r1', 'o1')).toEqual(
+      jasmine.objectContaining({ selectionMode: 'single', allowed: ['HR'] }),
+    );
+  });
+
+  it('leaves selection mode out of the saved payload when it is inherited', () => {
+    store.updateReveal('r1', 'o1', { required: true, allowed: [], selectionMode: null });
+
+    const saved = JSON.parse(JSON.stringify(store.schema()));
+    const outcome = saved.rules
+      .find((rule: { id: string }) => rule.id === 'r1')
+      .outcomes.find((o: { id: string }) => o.id === 'o1');
+
+    expect('selectionMode' in outcome).toBeFalse();
+  });
+
   it('tracks unsaved changes against the last saved snapshot', () => {
     expect(store.isDirty()).toBeTrue();
 

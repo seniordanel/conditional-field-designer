@@ -1,6 +1,7 @@
 import { ChangeDetectionStrategy, Component, computed, inject, input } from '@angular/core';
 import {
   MATCH_TYPE_VERBS,
+  SELECTION_MODE_LABELS,
   isAutofill,
   type FieldDefinition,
   type Rule,
@@ -93,10 +94,16 @@ export class RuleCardComponent {
   protected describe(outcome: RuleOutcome): string {
     if (isAutofill(outcome)) return `"${outcome.value}"`;
 
-    const base = outcome.required ? 'Required' : 'Optional';
     const target = this.targetField();
-    if (target.type === 'text') return base;
-    return `${base}, ${outcome.allowed.length}/${target.values.length} options`;
+    const parts = [outcome.required ? 'Required' : 'Optional'];
+
+    if (outcome.selectionMode) {
+      parts.push(SELECTION_MODE_LABELS[outcome.selectionMode].toLowerCase());
+    }
+    if (target.type !== 'text') {
+      parts.push(`${outcome.allowed.length}/${target.values.length} options`);
+    }
+    return parts.join(', ');
   }
 
   protected editCondition(): void {

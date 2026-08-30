@@ -1,6 +1,6 @@
 import { ChangeDetectionStrategy, Component, OnInit, computed, inject, input, signal } from '@angular/core';
 import { FormControl, ReactiveFormsModule } from '@angular/forms';
-import { isAutofill } from '../../../core/models';
+import { FIELD_TYPE_LABELS, isAutofill, type SelectionMode } from '../../../core/models';
 import { DesignerStore } from '../../../core/services/designer-store.service';
 import { DialogService } from '../../../core/services/dialog.service';
 import { ModalShellComponent } from '../../../shared/components/modal-shell/modal-shell.component';
@@ -43,6 +43,21 @@ import { ModalShellComponent } from '../../../shared/components/modal-shell/moda
           </label>
         </div>
 
+        @if (targetIsChoice()) {
+          <div class="form-group">
+            <label class="form-label" for="selection-mode">Selection Mode</label>
+            <select id="selection-mode" class="form-control" [formControl]="selectionMode">
+              <option value="">Use the field's own type ({{ defaultModeLabel() }})</option>
+              <option value="single">Single-select</option>
+              <option value="multi">Multi-select</option>
+            </select>
+            <p class="form-hint">
+              Overrides how the field is presented whenever this rule reveals it, so one field can
+              be single-select for one trigger value and multi-select for another.
+            </p>
+          </div>
+        }
+
         @if (targetValues().length) {
           <div class="form-group">
             <span class="form-label">Allowed Options</span>
@@ -84,6 +99,8 @@ export class OutcomeDialogComponent implements OnInit {
 
   protected readonly value = new FormControl('', { nonNullable: true });
   protected readonly required = new FormControl(false, { nonNullable: true });
+  /** `''` means "inherit the field's own type". */
+  protected readonly selectionMode = new FormControl<'' | SelectionMode>('', { nonNullable: true });
   protected readonly allowed = signal<ReadonlySet<string>>(new Set());
 
   private readonly outcome = computed(() => this.store.outcome(this.ruleId(), this.outcomeId()));
@@ -98,6 +115,14 @@ export class OutcomeDialogComponent implements OnInit {
   });
   protected readonly targetName = computed(() => this.targetField()?.name ?? '');
   protected readonly targetValues = computed(() => this.targetField()?.values ?? []);
+  protected readonly targetIsChoice = computed(() => {
+    const type = this.targetField()?.type;
+    return !!type && type !== 'text';
+  });
+  protected readonly defaultModeLabel = computed(() => {
+    const type = this.targetField()?.type;
+    return type ? FIELD_TYPE_LABELS[type] : '';
+  });
 
   ngOnInit(): void {
     const outcome = this.outcome();
@@ -109,6 +134,7 @@ export class OutcomeDialogComponent implements OnInit {
     }
 
     this.required.setValue(outcome.required);
+    this.selectionMode.setValue(outcome.selectionMode ?? '');
     // An empty allow-list means "no restriction", so show every option as checked.
     this.allowed.set(new Set(outcome.allowed.length ? outcome.allowed : this.targetValues()));
   }
@@ -125,9 +151,11 @@ export class OutcomeDialogComponent implements OnInit {
     if (this.autofill()) {
       this.store.updateAutofill(this.ruleId(), this.outcomeId(), this.value.value);
     } else {
-      this.store.updateReveal(this.ruleId(), this.outcomeId(), this.required.value, [
-        ...this.allowed(),
-      ]);
+      this.store.updateReveal(this.ruleId(), this.outcomeId(), {
+        required: this.required.value,
+        allowed: [...this.allowed()],
+        selectionMode: this.selectionMode.value || null,
+      });
     }
     this.dialogs.close();
   }

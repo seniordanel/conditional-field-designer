@@ -1,3 +1,5 @@
+import type { SelectionMode } from './field.model';
+
 /**
  * How a rule compares its `matchValues` against the source field's value.
  * Priority matters during evaluation: EXACT beats CONTAINS_ALL beats CONTAINS_ANY.
@@ -6,7 +8,7 @@ export type MatchType = 'EXACT' | 'CONTAINS_ALL' | 'CONTAINS_ANY';
 
 export type OutcomeType = 'REVEAL' | 'AUTOFILL';
 
-/** Shows a downstream field, optionally narrowing its options. */
+/** Shows a downstream field, optionally narrowing or re-typing it. */
 export interface RevealOutcome {
   readonly id: string;
   readonly type: 'REVEAL';
@@ -14,6 +16,8 @@ export interface RevealOutcome {
   readonly required: boolean;
   /** Subset of the target's values the user may pick. Empty means "all". */
   readonly allowed: readonly string[];
+  /** Overrides how a choice field is presented. Absent means "use the field's own type". */
+  readonly selectionMode?: SelectionMode;
 }
 
 /** Shows a downstream field and locks it to a fixed value. */

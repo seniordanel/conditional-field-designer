@@ -62,7 +62,52 @@ describe('RuleEngineService', () => {
     const result = run(rules, { building: 'London' });
 
     expect(result.visible).toContain('floor');
-    expect(result.constraints['floor']).toEqual({ required: true, allowed: ['1', '2'] });
+    expect(result.constraints['floor']).toEqual({
+      required: true,
+      allowed: ['1', '2'],
+      selectionMode: null,
+    });
+  });
+
+  it('carries a per-value selection mode through to the constraint', () => {
+    const asSingle: Rule = {
+      id: 'r1',
+      src: 'building',
+      matchType: 'EXACT',
+      matchValues: ['London'],
+      outcomes: [
+        {
+          id: 'o1',
+          type: 'REVEAL',
+          target: 'floor',
+          required: false,
+          allowed: [],
+          selectionMode: 'single',
+        },
+      ],
+    };
+    const asMulti: Rule = {
+      id: 'r2',
+      src: 'building',
+      matchType: 'EXACT',
+      matchValues: ['New York'],
+      outcomes: [
+        {
+          id: 'o2',
+          type: 'REVEAL',
+          target: 'floor',
+          required: false,
+          allowed: [],
+          selectionMode: 'multi',
+        },
+      ],
+    };
+
+    // The same Floor field, presented differently depending on which building fired.
+    expect(run([asSingle, asMulti], { building: 'London' }).constraints['floor'].selectionMode)
+      .toBe('single');
+    expect(run([asSingle, asMulti], { building: 'New York' }).constraints['floor'].selectionMode)
+      .toBe('multi');
   });
 
   it('chains rules: an auto-filled value can satisfy the next rule', () => {

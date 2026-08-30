@@ -79,6 +79,26 @@ ports stay declarative and just report intent through outputs.
 **Dialogs are data.** `DialogService` holds a `DialogRequest`; `DialogHostComponent` renders
 whichever one is active. No component needs a reference to another component to open a modal.
 
+## Reveal options
+
+A `REVEAL` outcome is configured per rule, so the *same* dependent field can be presented
+differently depending on which value triggered it.
+
+| Option | Effect |
+| --- | --- |
+| Required | Marks the revealed field with `*`, and lets it settle itself when one option remains |
+| Allowed options | Narrows a choice field to a subset of its values |
+| **Selection mode** | Overrides how a choice field is presented — single-select or multi-select |
+
+**Selection mode** covers the case where a dependent's cardinality depends on the parent value:
+`Building = London HQ` reveals `Floor` as a single-select, while `Building = New York HQ`
+reveals the very same `Floor` field as a multi-select. It applies only to choice fields; text
+fields ignore it. Leaving it on *"Use the field's own type"* keeps the field's declared type.
+
+It is additive and optional in the saved JSON — an outcome that does not set it omits the key
+entirely, and a missing `selectionMode` reads as "inherit", so schemas saved before this option
+existed keep loading unchanged.
+
 ## How evaluation works
 
 Fields that no rule targets are *roots* and are always visible. Everything else appears only
@@ -121,5 +141,6 @@ Observable with success and error branches.
 - **Wheel zoom and a zoom control were added.** The prototype tracked a `zoom` value in state
   but never exposed a way to change it.
 - **A dot grid was added to the canvas** so panning has a visual reference.
+- **Per-value selection mode was added** to the reveal outcome — see [Reveal options](#reveal-options).
 - **Required single-option fields settle themselves.** The prototype left them unanswered, which
   stopped the cascade at the first field the user had no real choice about.

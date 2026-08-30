@@ -1,5 +1,5 @@
 import { ChangeDetectionStrategy, Component, computed, input, output } from '@angular/core';
-import type { FieldDefinition, FieldValue } from '../../../core/models';
+import type { FieldDefinition, FieldType, FieldValue } from '../../../core/models';
 
 /**
  * One rendered end-user input. Presentational — it never reads the store, so the same
@@ -24,7 +24,7 @@ import type { FieldDefinition, FieldValue } from '../../../core/models';
       }
     </label>
 
-    @switch (field().type) {
+    @switch (renderType()) {
       @case ('text') {
         <input
           type="text"
@@ -123,11 +123,14 @@ export class PreviewFieldComponent {
   readonly required = input(false);
   readonly autofilled = input(false);
   readonly onlyOption = input(false);
+  /** Overrides how the field renders; `null` falls back to the field's own type. */
+  readonly selectionType = input<FieldType | null>(null);
 
   readonly valueChange = output<string>();
   readonly optionToggle = output<string>();
 
   protected readonly inputId = computed(() => `preview-${this.field().id}`);
+  protected readonly renderType = computed(() => this.selectionType() ?? this.field().type);
   protected readonly locked = computed(() => this.autofilled() || this.onlyOption());
 
   protected readonly singleValue = computed(() => {

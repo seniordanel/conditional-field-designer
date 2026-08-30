@@ -1,9 +1,15 @@
+import type { SelectionMode } from './field.model';
 import type { MatchType } from './rule.model';
 
-/** Runtime restrictions a REVEAL outcome places on a revealed field. */
+/**
+ * Runtime restrictions a REVEAL outcome places on a revealed field. Unlike the outcome it
+ * comes from, every property here is resolved — the engine normalises the optional ones.
+ */
 export interface FieldConstraint {
   readonly required: boolean;
   readonly allowed: readonly string[];
+  /** `null` means the field renders as its own type. */
+  readonly selectionMode: SelectionMode | null;
 }
 
 /** One "why did this happen?" entry shown next to the live preview. */

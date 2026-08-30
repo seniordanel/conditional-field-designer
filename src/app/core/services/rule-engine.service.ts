@@ -73,7 +73,11 @@ export class RuleEngineService {
             }
           } else if (!visible.has(outcome.target)) {
             visible.add(outcome.target);
-            constraints[outcome.target] = { required: outcome.required, allowed: outcome.allowed };
+            constraints[outcome.target] = {
+              required: outcome.required,
+              allowed: outcome.allowed,
+              selectionMode: outcome.selectionMode ?? null,
+            };
 
             // A required field left with a single option has no other legal answer, so settle
             // it here. `changed` is already true, so the next pass sees the value and any rule

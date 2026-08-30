@@ -10,6 +10,7 @@ import {
   type FieldDefinition,
   type FieldType,
   type FieldValue,
+  type SelectionMode,
   type RevealOutcome,
   type Rule,
   type RuleOutcome,
@@ -24,6 +25,14 @@ export interface FieldDraft {
   name: string;
   type: FieldType;
   values: string[];
+}
+
+/** What a REVEAL outcome lets an admin configure about the field it reveals. */
+export interface RevealSettings {
+  required: boolean;
+  allowed: string[];
+  /** `null` leaves the field rendering as its own type. */
+  selectionMode: SelectionMode | null;
 }
 
 /**
@@ -235,11 +244,13 @@ export class DesignerStore {
     this.patchOutcome(ruleId, outcomeId, (outcome) => ({ ...(outcome as AutofillOutcome), value }));
   }
 
-  updateReveal(ruleId: string, outcomeId: string, required: boolean, allowed: string[]): void {
+  updateReveal(ruleId: string, outcomeId: string, settings: RevealSettings): void {
     this.patchOutcome(ruleId, outcomeId, (outcome) => ({
       ...(outcome as RevealOutcome),
-      required,
-      allowed,
+      required: settings.required,
+      allowed: settings.allowed,
+      // Kept undefined rather than null so it drops out of the saved JSON entirely.
+      selectionMode: settings.selectionMode ?? undefined,
     }));
   }
 

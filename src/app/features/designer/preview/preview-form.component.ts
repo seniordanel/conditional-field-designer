@@ -1,10 +1,17 @@
 import { ChangeDetectionStrategy, Component, computed, inject } from '@angular/core';
-import type { FieldDefinition, FieldValue } from '../../../core/models';
+import {
+  resolveFieldType,
+  type FieldDefinition,
+  type FieldType,
+  type FieldValue,
+} from '../../../core/models';
 import { DesignerStore } from '../../../core/services/designer-store.service';
 import { PreviewFieldComponent } from './preview-field.component';
 
 interface PreviewRow {
   readonly field: FieldDefinition;
+  /** The field's own type, unless the reveal that showed it overrode the selection mode. */
+  readonly type: FieldType;
   readonly value: FieldValue | undefined;
   readonly options: readonly string[];
   readonly required: boolean;
@@ -35,6 +42,7 @@ interface PreviewRow {
         [required]="row.required"
         [autofilled]="row.autofilled"
         [onlyOption]="row.onlyOption"
+        [selectionType]="row.type"
         (valueChange)="store.setPreviewValue(row.field.id, $event)"
         (optionToggle)="store.togglePreviewValue(row.field.id, $event)"
       />
@@ -87,6 +95,7 @@ export class PreviewFormComponent {
 
       rows.push({
         field,
+        type: resolveFieldType(field, constraint?.selectionMode ?? null),
         value: autofill ?? resolved ?? inputs[fieldId],
         options: allowed.length ? allowed : field.values,
         required: constraint?.required ?? false,
